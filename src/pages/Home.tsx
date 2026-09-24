@@ -159,14 +159,18 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
         </div>
 
         {mode === 'edit' ? (
-          <IonFab slot="fixed" vertical="bottom" horizontal="end">
-            <IonFabButton data-testid="edit-cancel" onClick={handleCancel}>
-              <IonIcon icon={close} />
-            </IonFabButton>
-            <IonFabButton data-testid="edit-save" onClick={() => void handleSave()}>
-              <IonIcon icon={checkmark} />
-            </IonFabButton>
-          </IonFab>
+          <>
+            <IonFab slot="fixed" vertical="bottom" horizontal="start">
+              <IonFabButton data-testid="edit-cancel" onClick={handleCancel}>
+                <IonIcon icon={close} />
+              </IonFabButton>
+            </IonFab>
+            <IonFab slot="fixed" vertical="bottom" horizontal="end">
+              <IonFabButton data-testid="edit-save" onClick={() => void handleSave()}>
+                <IonIcon icon={checkmark} />
+              </IonFabButton>
+            </IonFab>
+          </>
         ) : (
           <IonFab slot="fixed" vertical="bottom" horizontal="end">
             <IonFabButton data-testid="edit-pencil" onClick={handleEdit}>

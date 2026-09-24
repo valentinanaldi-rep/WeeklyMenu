@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  IonButton, IonCard, IonCardContent, IonContent, IonHeader, IonIcon,
-  IonPage, IonTitle, IonToolbar,
+  IonButton, IonCard, IonCardContent, IonContent, IonFab, IonFabButton,
+  IonHeader, IonIcon, IonPage, IonTitle, IonToolbar,
 } from '@ionic/react';
-import { chevronBack, chevronForward } from 'ionicons/icons';
+import { checkmark, chevronBack, chevronForward, close, pencil } from 'ionicons/icons';
 import { DevHttpFileGateway } from '../data/DevHttpFileGateway';
 import type { MenuRepository } from '../data/MenuRepository';
 import { XlsxMenuRepository } from '../data/MenuRepository';
-import type { DayMenu, MenuRow } from '../domain/types';
+import type { DayMenu, MenuRow, WeekMenu } from '../domain/types';
 import {
-  parseIso, toDisplay, toIso, weekMenuFor, weekRangeLabel, weekStartForOffset,
+  dateForDay, parseIso, previousYearWeekStart, toDisplay, toIso,
+  weekMenuFor, weekRangeLabel, weekStartForOffset,
 } from '../domain/week';
 import './Home.css';
 
@@ -27,6 +28,8 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
   const repo = useMemo(() => repository ?? createDevRepository(), [repository]);
   const [rows, setRows] = useState<MenuRow[]>([]);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [draft, setDraft] = useState<WeekMenu | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -43,9 +46,53 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
 
   const weekStartIso = toIso(weekStartForOffset(weekOffset));
   const week = weekMenuFor(weekStartIso);
+  const display = draft ?? week;
 
   const mealFor = (day: DayMenu, field: 'lunch' | 'dinner') =>
     rows.find(r => r.date === day.date)?.[field] ?? '';
+
+  const handleEdit = () => {
+    if (mode === 'edit') {
+      return;
+    }
+    const prevStart = previousYearWeekStart(weekStartIso);
+    const prev = rows.filter(r => r.weekStart === prevStart);
+    const nextDraft = weekMenuFor(weekStartIso);
+    nextDraft.days = nextDraft.days.map((day, i) => {
+      const source = prev.find(r => r.date === dateForDay(prevStart, i));
+      return source ? { ...day, lunch: source.lunch, dinner: source.dinner } : day;
+    });
+    setDraft(nextDraft);
+    setMode('edit');
+  };
+
+  const updateDraft = (dayIndex: number, field: 'lunch' | 'dinner', value: string) => {
+    setDraft(prev => {
+      if (!prev) return prev;
+      const days = prev.days.map((day, i) =>
+        i === dayIndex ? { ...day, [field]: value } : day,
+      );
+      return { ...prev, days };
+    });
+  };
+
+  const handleCancel = () => {
+    setDraft(null);
+    setMode('view');
+  };
+
+  const handleSave = async () => {
+    if (!draft) return;
+    try {
+      await repo.saveWeek(draft);
+      await load();
+      setMode('view');
+      setDraft(null);
+      setToast('Menù salvato');
+    } catch {
+      setToast('Errore nel salvataggio');
+    }
+  };
 
   return (
     <IonPage>
@@ -68,23 +115,65 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
         </div>
 
         <div className="day-list">
-          {week.days.map((day, i) => (
+          {display.days.map((day, i) => (
             <IonCard key={day.date}>
               <IonCardContent>
                 <div className="day-head">
                   <strong>{day.dayName}</strong>
                   <span data-testid={`day-date-${i}`}>{toDisplay(parseIso(day.date))}</span>
                 </div>
-                <div className="meal" data-testid={`lunch-${i}`}>
-                  Pranzo: {mealFor(day, 'lunch') || EMPTY_TEXT}
-                </div>
-                <div className="meal" data-testid={`dinner-${i}`}>
-                  Cena: {mealFor(day, 'dinner') || EMPTY_TEXT}
-                </div>
+                {mode === 'edit' ? (
+                  <>
+                    <label className="meal-label" htmlFor={`lunch-${i}`}>Pranzo</label>
+                    <textarea
+                      id={`lunch-${i}`}
+                      data-testid={`lunch-${i}`}
+                      className="meal-input"
+                      rows={2}
+                      value={draft?.days[i].lunch ?? ''}
+                      onChange={e => updateDraft(i, 'lunch', e.target.value)}
+                    />
+                    <label className="meal-label" htmlFor={`dinner-${i}`}>Cena</label>
+                    <textarea
+                      id={`dinner-${i}`}
+                      data-testid={`dinner-${i}`}
+                      className="meal-input"
+                      rows={2}
+                      value={draft?.days[i].dinner ?? ''}
+                      onChange={e => updateDraft(i, 'dinner', e.target.value)}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div className="meal" data-testid={`lunch-${i}`}>
+                      Pranzo: {mealFor(day, 'lunch') || EMPTY_TEXT}
+                    </div>
+                    <div className="meal" data-testid={`dinner-${i}`}>
+                      Cena: {mealFor(day, 'dinner') || EMPTY_TEXT}
+                    </div>
+                  </>
+                )}
               </IonCardContent>
             </IonCard>
           ))}
         </div>
+
+        {mode === 'edit' ? (
+          <IonFab slot="fixed" vertical="bottom" horizontal="end">
+            <IonFabButton data-testid="edit-cancel" onClick={handleCancel}>
+              <IonIcon icon={close} />
+            </IonFabButton>
+            <IonFabButton data-testid="edit-save" onClick={() => void handleSave()}>
+              <IonIcon icon={checkmark} />
+            </IonFabButton>
+          </IonFab>
+        ) : (
+          <IonFab slot="fixed" vertical="bottom" horizontal="end">
+            <IonFabButton data-testid="edit-pencil" onClick={handleEdit}>
+              <IonIcon icon={pencil} />
+            </IonFabButton>
+          </IonFab>
+        )}
 
         {toast && <div className="toast" data-testid="toast">{toast}</div>}
       </IonContent>

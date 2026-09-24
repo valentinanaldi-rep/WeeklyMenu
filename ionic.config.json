@@ -1,0 +1,7 @@
+{
+  "name": "WeeklyMenu",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}

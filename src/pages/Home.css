@@ -122,6 +122,16 @@ ion-fab-button::part(native) {
   cursor: pointer;
 }
 
-ion-fab-button {
+ion-fab-button[data-testid] {
   --background-hover: transparent;
+  --background-hover-opacity: 0;
+  --background-focused: transparent;
+  --background-focused-opacity: 0;
+}
+
+ion-button[fill="outline"] {
+  --background-hover: transparent;
+  --background-hover-opacity: 0;
+  --background-focused: transparent;
+  --background-focused-opacity: 0;
 }

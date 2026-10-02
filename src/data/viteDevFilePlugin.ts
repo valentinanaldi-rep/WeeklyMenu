@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { emptyWorkbook } from './xlsxWorkbook';
@@ -78,6 +78,11 @@ export function createFileMiddleware(menuFilePath: string, listsDir: string): Fi
           writeFileSync(filePath, Buffer.concat(chunks));
           sendText(res, 200, 'ok');
         });
+        return;
+      }
+      if (req.method === 'DELETE') {
+        rmSync(filePath, { force: true });
+        sendText(res, 200, 'ok');
         return;
       }
       next();

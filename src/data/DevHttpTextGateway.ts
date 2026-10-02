@@ -24,4 +24,13 @@ export class DevHttpTextGateway implements TextFileGateway {
       throw new Error(`Failed to write list: ${res.status}`);
     }
   }
+
+  async deleteText(key: string): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/api/lista?week=${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to delete list: ${res.status}`);
+    }
+  }
 }

@@ -48,4 +48,18 @@ describe('DevHttpTextGateway', () => {
     const gw = new DevHttpTextGateway(`http://localhost:${port}`);
     await expect(gw.writeText('2026-02-30', 'x')).rejects.toThrow();
   });
+
+  it('deletes a list previously saved', async () => {
+    port = await start();
+    const gw = new DevHttpTextGateway(`http://localhost:${port}`);
+    await gw.writeText('2026-09-21', 'contenuto lista');
+    await gw.deleteText('2026-09-21');
+    expect(await gw.readText('2026-09-21')).toBeNull();
+  });
+
+  it('rejects when deleting with an invalid key', async () => {
+    port = await start();
+    const gw = new DevHttpTextGateway(`http://localhost:${port}`);
+    await expect(gw.deleteText('2026-02-30')).rejects.toThrow();
+  });
 });

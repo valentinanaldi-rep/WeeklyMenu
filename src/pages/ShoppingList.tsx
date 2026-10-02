@@ -32,6 +32,7 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ week, repository, textGatew
   const [note, setNote] = useState('');
   const [items, setItems] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -77,11 +78,14 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ week, repository, textGatew
     }
   };
 
-  const handleReload = async () => {
+  const handleDelete = async () => {
+    setConfirmDelete(false);
     try {
-      await loadList();
+      await lists.deleteText(week);
+      setItems('');
+      setToast('Lista cancellata');
     } catch {
-      setToast('Errore nel caricamento della lista');
+      setToast('Errore nella cancellazione della lista');
     }
   };
 
@@ -110,7 +114,14 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ week, repository, textGatew
         />
         <div className="list-actions">
           <IonButton data-testid="list-save" onClick={() => void handleSave()}>Salva in Dati</IonButton>
-          <IonButton fill="outline" data-testid="list-reload" onClick={() => void handleReload()}>Richiama</IonButton>
+          {confirmDelete ? (
+            <>
+              <IonButton fill="outline" color="danger" data-testid="delete-cancel" onClick={() => setConfirmDelete(false)}>Annulla</IonButton>
+              <IonButton color="danger" data-testid="delete-confirm" onClick={() => void handleDelete()}>Sì, cancella</IonButton>
+            </>
+          ) : (
+            <IonButton fill="outline" color="danger" data-testid="list-delete" onClick={() => setConfirmDelete(true)}>Cancella lista</IonButton>
+          )}
         </div>
         {toast && <div className="toast" data-testid="toast">{toast}</div>}
       </IonContent>

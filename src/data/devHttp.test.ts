@@ -124,6 +124,24 @@ describe('dev file server', () => {
       }
     });
 
+    it('DELETE removes the list file and the follow-up GET is 404', async () => {
+      const { port, listsDir } = await start();
+      await fetch(`http://localhost:${port}/api/lista?week=2026-09-21`, { method: 'PUT', body: 'da cancellare' });
+      const listFile = path.join(listsDir, 'lista_2026-09-21.txt');
+      expect(existsSync(listFile)).toBe(true);
+      const del = await fetch(`http://localhost:${port}/api/lista?week=2026-09-21`, { method: 'DELETE' });
+      expect(del.ok).toBe(true);
+      expect(existsSync(listFile)).toBe(false);
+    });
+
+    it('DELETE is idempotent and still rejects invalid weeks with 400', async () => {
+      const { port } = await start();
+      const delMissing = await fetch(`http://localhost:${port}/api/lista?week=2026-09-28`, { method: 'DELETE' });
+      expect(delMissing.ok).toBe(true);
+      const delInvalid = await fetch(`http://localhost:${port}/api/lista?week=abc`, { method: 'DELETE' });
+      expect(delInvalid.status).toBe(400);
+    });
+
     it('still serves the menu endpoints', async () => {
       const { port } = await start();
       const res = await fetch(`http://localhost:${port}/api/menu`);

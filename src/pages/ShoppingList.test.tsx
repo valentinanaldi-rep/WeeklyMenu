@@ -28,6 +28,9 @@ function fakeList(initial: string | null = null): TextFileGateway & { lastConten
     writeText: vi.fn(async (_key: string, text: string) => {
       content = text;
     }),
+    deleteText: vi.fn(async () => {
+      content = null;
+    }),
     lastContent: () => content,
   };
 }
@@ -74,13 +77,50 @@ describe('ShoppingList', () => {
     expect(screen.getByTestId('toast')).toHaveTextContent('Nessuna lista per questa settimana');
   });
 
-  it('recalls a saved list on demand', async () => {
+  it('asks for confirmation before deleting the list', async () => {
+    const custom = fakeList(`nota\n\n${LIST_MARKER}\n- farina`);
+    render(<ShoppingList week={week} repository={fakeRepo()} textGateway={custom} />);
+    await screen.findByText('Lista della spesa');
+    fireEvent.click(screen.getByTestId('list-delete'));
+    expect(screen.getByTestId('delete-confirm')).toHaveTextContent('Sì, cancella');
+    expect(screen.getByTestId('delete-cancel')).toBeInTheDocument();
+    expect(custom.deleteText).not.toHaveBeenCalled();
+  });
+
+  it('cancelling the confirmation keeps the list untouched', async () => {
     const custom = fakeList(`nota\n\n${LIST_MARKER}\n- farina`);
     render(<ShoppingList week={week} repository={fakeRepo()} textGateway={custom} />);
     await screen.findByText('Lista della spesa');
     const ta = screen.getByTestId('shopping-items') as HTMLTextAreaElement;
-    fireEvent.change(ta, { target: { value: 'da sovrascrivere' } });
-    fireEvent.click(screen.getByTestId('list-reload'));
-    await waitFor(() => expect(ta.value).toBe('farina'));
+    fireEvent.change(ta, { target: { value: 'da tenere' } });
+    fireEvent.click(screen.getByTestId('list-delete'));
+    fireEvent.click(screen.getByTestId('delete-cancel'));
+    expect(custom.deleteText).not.toHaveBeenCalled();
+    expect(ta.value).toBe('da tenere');
+    expect(screen.queryByTestId('delete-confirm')).not.toBeInTheDocument();
+  });
+
+  it('deletes the list, clears the textarea and shows a toast', async () => {
+    const custom = fakeList(`nota\n\n${LIST_MARKER}\n- farina`);
+    render(<ShoppingList week={week} repository={fakeRepo()} textGateway={custom} />);
+    await screen.findByText('Lista della spesa');
+    const ta = screen.getByTestId('shopping-items') as HTMLTextAreaElement;
+    fireEvent.click(screen.getByTestId('list-delete'));
+    fireEvent.click(screen.getByTestId('delete-confirm'));
+    await waitFor(() => expect(custom.deleteText).toHaveBeenCalledWith(week));
+    await waitFor(() => expect(ta.value).toBe(''));
+    expect(screen.getByTestId('toast')).toHaveTextContent('Lista cancellata');
+  });
+
+  it('shows an error toast when the deletion fails', async () => {
+    const custom = fakeList(null);
+    custom.deleteText = vi.fn(async () => {
+      throw new Error('boom');
+    });
+    render(<ShoppingList week={week} repository={fakeRepo()} textGateway={custom} />);
+    await screen.findByText('Lista della spesa');
+    fireEvent.click(screen.getByTestId('list-delete'));
+    fireEvent.click(screen.getByTestId('delete-confirm'));
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('Errore nella cancellazione della lista'));
   });
 });

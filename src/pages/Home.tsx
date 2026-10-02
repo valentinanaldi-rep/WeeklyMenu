@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
   IonButton, IonCard, IonCardContent, IonContent, IonFab, IonFabButton,
   IonHeader, IonIcon, IonPage, IonTitle, IonToolbar,
@@ -12,7 +12,7 @@ import { XlsxMenuRepository } from '../data/MenuRepository';
 import type { DayMenu, MenuRow, WeekMenu } from '../domain/types';
 import {
   dateForDay, offsetForWeekStart, parseIso, previousYearWeekStart, toDisplay, toIso,
-  toIsoWeekValue, weekMenuFor, weekRangeLabel, weekStartForOffset, weekStartFromIsoWeekValue,
+  weekMenuFor, weekRangeLabel, weekStartForOffset,
 } from '../domain/week';
 import './Home.css';
 
@@ -26,6 +26,8 @@ interface HomeProps {
 
 const EMPTY_TEXT = '—';
 const TOAST_MS = 3000;
+export const WEEK_PICKER_PAST = 260;
+export const WEEK_PICKER_FUTURE = 156;
 
 const Home: React.FC<HomeProps> = ({ repository }) => {
   const repo = useMemo(() => repository ?? createDevRepository(), [repository]);
@@ -69,34 +71,22 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
     setWeekOffset(w => w + delta);
   };
 
-  const weekPickerRef = useRef<HTMLInputElement>(null);
-
-  const openWeekPicker = () => {
-    if (mode === 'edit') {
-      return;
-    }
-    const input = weekPickerRef.current;
-    if (!input) {
-      return;
-    }
-    if (typeof input.showPicker === 'function') {
-      try {
-        input.showPicker();
-      } catch {
-        input.focus();
-      }
-    } else {
-      input.focus();
-    }
-  };
-
-  const handleWeekPick = (e: ChangeEvent<HTMLInputElement>) => {
-    const target = weekStartFromIsoWeekValue(e.target.value);
-    if (target === null) {
+  const handleWeekPick = (e: ChangeEvent<HTMLSelectElement>) => {
+    const target = e.target.value;
+    if (!target) {
       return;
     }
     setWeekOffset(offsetForWeekStart(target));
   };
+
+  const weekPickerOptions = useMemo(() => {
+    const list: { value: string; label: string }[] = [];
+    for (let offset = -WEEK_PICKER_PAST; offset <= WEEK_PICKER_FUTURE; offset += 1) {
+      const startIso = toIso(weekStartForOffset(offset));
+      list.push({ value: startIso, label: weekRangeLabel(startIso) });
+    }
+    return list;
+  }, []);
 
   const handleEdit = () => {
     if (mode === 'edit') {
@@ -158,21 +148,26 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
           <IonButton fill="outline" data-testid="prev-week" disabled={mode === 'edit'} onClick={() => shiftWeek(-1)}>
             <IonIcon icon={chevronBack} />
           </IonButton>
-          <div className="week-picker" onClick={openWeekPicker}>
+          <div className="week-picker">
             <div className="week-nav__label" data-testid="week-range">
               {weekRangeLabel(weekStartIso)}
               <IonIcon icon={chevronDown} />
             </div>
-            <input
-              type="week"
-              ref={weekPickerRef}
+            <select
               className="week-picker__input"
               aria-label="Seleziona settimana"
               data-testid="week-picker"
-              value={toIsoWeekValue(weekStartIso)}
+              value={weekStartIso}
               disabled={mode === 'edit'}
               onChange={handleWeekPick}
-            />
+            >
+              {!weekPickerOptions.some(o => o.value === weekStartIso) && (
+                <option value={weekStartIso}>{weekRangeLabel(weekStartIso)}</option>
+              )}
+              {weekPickerOptions.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </div>
           <IonButton fill="outline" data-testid="next-week" disabled={mode === 'edit'} onClick={() => shiftWeek(1)}>
             <IonIcon icon={chevronForward} />

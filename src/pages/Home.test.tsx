@@ -5,10 +5,10 @@ import type { MenuRepository } from '../data/MenuRepository';
 import { mergeWeek } from '../data/xlsxWorkbook';
 import type { MenuRow, WeekMenu } from '../domain/types';
 import {
-  parseIso, previousYearWeekStart, toDisplay, toIso, toIsoWeekValue, weekMenuFor,
-  weekRangeLabel, weekStartForOffset, weekStartFromIsoWeekValue,
+  parseIso, previousYearWeekStart, toDisplay, toIso, weekMenuFor,
+  weekRangeLabel, weekStartForOffset,
 } from '../domain/week';
-import Home from './Home';
+import Home, { WEEK_PICKER_FUTURE, WEEK_PICKER_PAST } from './Home';
 
 function weekRows(week: WeekMenu): MenuRow[] {
   return week.days.map(d => ({ weekStart: week.weekStart, ...d }));
@@ -166,34 +166,39 @@ describe('Home edit', () => {
 });
 
 describe('Home week picker', () => {
-  it('reflects the shown week and jumps to any selected week', async () => {
+  it('shows a select whose value reflects the shown week', async () => {
     await renderHome();
-    const picker = screen.getByTestId('week-picker');
-    expect((picker as HTMLInputElement).value).toBe(toIsoWeekValue(toIso(weekStartForOffset(0))));
-    fireEvent.change(picker, { target: { value: '2027-W03' } });
-    expect(screen.getByTestId('week-range').textContent).toBe(
-      weekRangeLabel(weekStartFromIsoWeekValue('2027-W03') as string),
-    );
+    const picker = screen.getByTestId('week-picker') as HTMLSelectElement;
+    expect(picker.value).toBe(toIso(weekStartForOffset(0)));
+  });
+
+  it('lists a bounded range of weeks to search past and future', async () => {
+    await renderHome();
+    const picker = screen.getByTestId('week-picker') as HTMLSelectElement;
+    const options = Array.from(picker.options).map(o => o.value);
+    expect(options.length).toBeGreaterThan(300);
+    expect(options).toContain(toIso(weekStartForOffset(-WEEK_PICKER_PAST)));
+    expect(options).toContain(toIso(weekStartForOffset(WEEK_PICKER_FUTURE)));
+  });
+
+  it('jumps to the selected week', async () => {
+    await renderHome();
+    fireEvent.change(screen.getByTestId('week-picker'), { target: { value: toIso(weekStartForOffset(3)) } });
+    expect(screen.getByTestId('week-range').textContent).toBe(weekRangeLabel(toIso(weekStartForOffset(3))));
   });
 
   it('stays in sync with the prev/next arrows', async () => {
     await renderHome();
     fireEvent.click(screen.getByTestId('next-week'));
-    expect((screen.getByTestId('week-picker') as HTMLInputElement).value).toBe(
-      toIsoWeekValue(toIso(weekStartForOffset(1))),
-    );
+    expect((screen.getByTestId('week-picker') as HTMLSelectElement).value).toBe(toIso(weekStartForOffset(1)));
     fireEvent.click(screen.getByTestId('prev-week'));
-    expect((screen.getByTestId('week-picker') as HTMLInputElement).value).toBe(
-      toIsoWeekValue(toIso(weekStartForOffset(0))),
-    );
+    expect((screen.getByTestId('week-picker') as HTMLSelectElement).value).toBe(toIso(weekStartForOffset(0)));
   });
 
   it('lets the user open weeks far in the past without saved data', async () => {
     await renderHome();
-    fireEvent.change(screen.getByTestId('week-picker'), { target: { value: '2020-W05' } });
-    expect(screen.getByTestId('week-range').textContent).toBe(
-      weekRangeLabel(weekStartFromIsoWeekValue('2020-W05') as string),
-    );
+    fireEvent.change(screen.getByTestId('week-picker'), { target: { value: toIso(weekStartForOffset(-104)) } });
+    expect(screen.getByTestId('week-range').textContent).toBe(weekRangeLabel(toIso(weekStartForOffset(-104))));
     expect(screen.getAllByTestId(/^lunch-\d$/)).toHaveLength(7);
   });
 
@@ -203,27 +208,14 @@ describe('Home week picker', () => {
     expect(screen.getByTestId('week-picker')).toBeDisabled();
   });
 
-  it('ignores an empty picker value without navigating', async () => {
+  it('keeps the current week selectable even outside the fixed range', async () => {
     await renderHome();
-    const before = screen.getByTestId('week-range').textContent;
-    fireEvent.change(screen.getByTestId('week-picker'), { target: { value: '' } });
-    expect(screen.getByTestId('week-range').textContent).toBe(before);
-  });
-
-  it('opens the native picker when the week label is clicked', async () => {
-    const showPicker = vi.fn();
-    (HTMLInputElement.prototype as unknown as { showPicker: () => void }).showPicker = showPicker;
-    await renderHome();
-    fireEvent.click(screen.getByTestId('week-range'));
-    expect(showPicker).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not open the picker while editing', async () => {
-    const showPicker = vi.fn();
-    (HTMLInputElement.prototype as unknown as { showPicker: () => void }).showPicker = showPicker;
-    await renderHome([]);
-    await userEvent.click(await screen.findByTestId('edit-pencil'));
-    fireEvent.click(screen.getByTestId('week-range'));
-    expect(showPicker).not.toHaveBeenCalled();
+    const prev = screen.getByTestId('prev-week');
+    for (let i = 0; i < 300; i += 1) {
+      fireEvent.click(prev);
+    }
+    const picker = screen.getByTestId('week-picker') as HTMLSelectElement;
+    expect(picker.value).toBe(toIso(weekStartForOffset(-300)));
+    expect(screen.getByTestId('week-range').textContent).toBe(weekRangeLabel(toIso(weekStartForOffset(-300))));
   });
 });

@@ -198,8 +198,11 @@ const Home: React.FC<HomeProps> = ({ repository, onNavigate }) => {
     <IonPage id="main-content">
       <IonHeader>
         <IonToolbar>
-          <IonMenuButton slot="start" />
-          <IonTitle data-testid="home-title">Weekly Menu</IonTitle>
+          <IonMenuButton slot="end" data-testid="menu-toggle" />
+          <IonTitle data-testid="home-title">
+            <img className="toolbar-icon" src="/icon.png" alt="Logo Weekly Menu" />
+            <span className="toolbar-brand">Weekly Menu</span>
+          </IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent fullscreen>

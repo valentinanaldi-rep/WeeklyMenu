@@ -266,4 +266,15 @@ describe('Home hamburger menu', () => {
     fireEvent.click(screen.getByTestId('menu-export'));
     await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent("Errore nell'esportazione"));
   });
+
+  it('shows the app icon and an amber-bold brand beside the title', async () => {
+    await renderHome();
+    const title = screen.getByTestId('home-title');
+    const toggle = screen.getByTestId('menu-toggle');
+    const brand = title.querySelector('.toolbar-brand');
+    expect(title.querySelector('img')?.getAttribute('src')).toBe('/icon.png');
+    expect(brand?.textContent).toBe('Weekly Menu');
+    expect(brand?.className).toBe('toolbar-brand');
+    expect(toggle.closest('ion-toolbar')).toBe(title.closest('ion-toolbar'));
+  });
 });

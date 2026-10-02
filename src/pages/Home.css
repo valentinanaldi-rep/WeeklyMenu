@@ -108,6 +108,22 @@
   z-index: 10;
 }
 
+.toolbar-icon {
+  width: 22px;
+  height: 22px;
+  margin-inline-end: 8px;
+  vertical-align: -4px;
+  border-radius: 4px;
+}
+
+.toolbar-brand {
+  font-weight: 700;
+  background-image: linear-gradient(150deg, #a47e3e 0%, #946e2d 45%, #85522b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 ion-menu ion-item {
   cursor: pointer;
 }

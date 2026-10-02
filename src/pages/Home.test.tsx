@@ -10,6 +10,11 @@ import {
 } from '../domain/week';
 import Home, { WEEK_PICKER_FUTURE, WEEK_PICKER_PAST } from './Home';
 
+vi.mock('../data/exportWorkbook', () => ({
+  saveWorkbookToDisk: vi.fn(async () => 'saved' as const),
+}));
+import { saveWorkbookToDisk } from '../data/exportWorkbook';
+
 function weekRows(week: WeekMenu): MenuRow[] {
   return week.days.map(d => ({ weekStart: week.weekStart, ...d }));
 }
@@ -30,14 +35,14 @@ function seededStore(rows: MenuRow[]): MenuRepository {
 async function renderHome(rows: MenuRow[] = []) {
   const repo = seededStore(rows);
   render(<Home repository={repo} />);
-  await screen.findByText('Weekly Menu');
+  await screen.findByTestId('home-title');
   return repo;
 }
 
 describe('Home view', () => {
   it('shows title, week range and 7 day cards', async () => {
     await renderHome();
-    expect(screen.getByText('Weekly Menu')).toBeInTheDocument();
+    expect(screen.getByTestId('home-title')).toHaveTextContent('Weekly Menu');
     expect(screen.getByTestId('week-range').textContent).toBe(weekRangeLabel(toIso(weekStartForOffset(0))));
     const week = weekMenuFor(toIso(weekStartForOffset(0)));
     for (const day of week.days) {
@@ -218,5 +223,47 @@ describe('Home week picker', () => {
     const picker = screen.getByTestId('week-picker') as HTMLSelectElement;
     expect(picker.value).toBe(toIso(weekStartForOffset(-300)));
     expect(screen.getByTestId('week-range').textContent).toBe(weekRangeLabel(toIso(weekStartForOffset(-300))));
+  });
+});
+
+describe('Home hamburger menu', () => {
+  it('shows the three menu entries with their labels', async () => {
+    await renderHome();
+    expect(screen.getByTestId('menu-list')).toHaveTextContent('Crea lista della spesa');
+    expect(screen.getByTestId('menu-print')).toHaveTextContent('Esporta in PDF il menù settimanale selezionato');
+    expect(screen.getByTestId('menu-export')).toHaveTextContent('Esporta tutto il DB');
+  });
+
+  it('navigates to the shopping list of the shown week', async () => {
+    const navigate = vi.fn();
+    render(<Home repository={seededStore([])} onNavigate={navigate} />);
+    await screen.findByTestId('home-title');
+    fireEvent.click(screen.getByTestId('menu-list'));
+    expect(navigate).toHaveBeenCalledWith(`/lista/${toIso(weekStartForOffset(0))}`);
+  });
+
+  it('navigates to the print view of the shown week', async () => {
+    const navigate = vi.fn();
+    render(<Home repository={seededStore([])} onNavigate={navigate} />);
+    await screen.findByTestId('home-title');
+    fireEvent.click(screen.getByTestId('menu-print'));
+    expect(navigate).toHaveBeenCalledWith(`/stampa/${toIso(weekStartForOffset(0))}`);
+  });
+
+  it('exports the whole workbook with a dated filename', async () => {
+    const repo = await renderHome([]);
+    fireEvent.click(screen.getByTestId('menu-export'));
+    await waitFor(() => expect(vi.mocked(repo.exportWorkbook)).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(saveWorkbookToDisk)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(saveWorkbookToDisk).mock.calls[0][1]).toMatch(/^WeeklyMenu_\d{4}-\d{2}-\d{2}\.xlsx$/);
+  });
+
+  it('shows a toast when exporting fails', async () => {
+    const repo = seededStore([]);
+    vi.mocked(repo.exportWorkbook).mockRejectedValueOnce(new Error('boom'));
+    render(<Home repository={repo} />);
+    await screen.findByTestId('home-title');
+    fireEvent.click(screen.getByTestId('menu-export'));
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent("Errore nell'esportazione"));
   });
 });

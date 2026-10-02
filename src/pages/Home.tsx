@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
   IonButton, IonCard, IonCardContent, IonContent, IonFab, IonFabButton,
-  IonHeader, IonIcon, IonPage, IonTitle, IonToolbar,
+  IonHeader, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonMenuButton,
+  IonPage, IonTitle, IonToolbar, useIonRouter,
 } from '@ionic/react';
 import {
-  checkmark, chevronBack, chevronDown, chevronForward, close, pencil,
+  cart, checkmark, chevronBack, chevronDown, chevronForward, close, download,
+  pencil, print,
 } from 'ionicons/icons';
 import { DevHttpFileGateway } from '../data/DevHttpFileGateway';
 import type { MenuRepository } from '../data/MenuRepository';
 import { XlsxMenuRepository } from '../data/MenuRepository';
+import { saveWorkbookToDisk } from '../data/exportWorkbook';
 import type { DayMenu, MenuRow, WeekMenu } from '../domain/types';
 import {
   dateForDay, offsetForWeekStart, parseIso, previousYearWeekStart, toDisplay, toIso,
@@ -22,6 +25,7 @@ function createDevRepository(): MenuRepository {
 
 interface HomeProps {
   repository?: MenuRepository;
+  onNavigate?: (url: string) => void;
 }
 
 const EMPTY_TEXT = '—';
@@ -29,8 +33,10 @@ const TOAST_MS = 3000;
 export const WEEK_PICKER_PAST = 260;
 export const WEEK_PICKER_FUTURE = 156;
 
-const Home: React.FC<HomeProps> = ({ repository }) => {
+const Home: React.FC<HomeProps> = ({ repository, onNavigate }) => {
   const repo = useMemo(() => repository ?? createDevRepository(), [repository]);
+  const router = useIonRouter();
+  const menuRef = useRef<HTMLIonMenuElement | null>(null);
   const [rows, setRows] = useState<MenuRow[]>([]);
   const [weekOffset, setWeekOffset] = useState(0);
   const [mode, setMode] = useState<'view' | 'edit'>('view');
@@ -136,11 +142,64 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
     }
   };
 
+  const navigateTo = (url: string) => {
+    if (onNavigate) {
+      onNavigate(url);
+    } else {
+      router.push(url);
+    }
+  };
+
+  const openShoppingList = () => {
+    void menuRef.current?.close();
+    navigateTo(`/lista/${weekStartIso}`);
+  };
+
+  const openPrintView = () => {
+    void menuRef.current?.close();
+    navigateTo(`/stampa/${weekStartIso}`);
+  };
+
+  const handleExportDb = async () => {
+    try {
+      const buffer = await repo.exportWorkbook();
+      await saveWorkbookToDisk(buffer, `WeeklyMenu_${toIso(new Date())}.xlsx`);
+    } catch {
+      setToast("Errore nell'esportazione");
+    }
+  };
+
   return (
-    <IonPage>
+    <>
+      <IonMenu contentId="main-content" ref={menuRef}>
+        <IonHeader>
+          <IonToolbar>
+            <IonTitle>Weekly Menu</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent>
+          <IonList>
+            <IonItem data-testid="menu-list" button onClick={openShoppingList}>
+              <IonIcon icon={cart} slot="start" />
+              <IonLabel>Crea lista della spesa</IonLabel>
+            </IonItem>
+            <IonItem data-testid="menu-print" button onClick={openPrintView}>
+              <IonIcon icon={print} slot="start" />
+              <IonLabel>Esporta in PDF il menù settimanale selezionato</IonLabel>
+            </IonItem>
+            <IonItem data-testid="menu-export" button onClick={() => void handleExportDb()}>
+              <IonIcon icon={download} slot="start" />
+              <IonLabel>Esporta tutto il DB</IonLabel>
+            </IonItem>
+          </IonList>
+        </IonContent>
+      </IonMenu>
+
+    <IonPage id="main-content">
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Weekly Menu</IonTitle>
+          <IonMenuButton slot="start" />
+          <IonTitle data-testid="home-title">Weekly Menu</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent fullscreen>
@@ -242,6 +301,7 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
         {toast && <div className="toast" data-testid="toast">{toast}</div>}
       </IonContent>
     </IonPage>
+    </>
   );
 };
 

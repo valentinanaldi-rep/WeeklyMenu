@@ -28,16 +28,16 @@ describe('dev file server', () => {
     }
   });
 
-  async function start(): Promise<{ port: number; file: string }> {
+  async function start(): Promise<{ port: number; file: string; listsDir: string }> {
     const dir = mkdtempSync(path.join(tmpdir(), 'wm-'));
     dirs.push(dir);
     const file = path.join(dir, 'menu.xlsx');
-    const handler = createFileMiddleware(file) as unknown as RequestListener;
+    const handler = createFileMiddleware(file, dir) as unknown as RequestListener;
     const server = createServer(handler);
     servers.push(server);
     await new Promise<void>(resolve => server.listen(0, resolve));
     const port = (server.address() as AddressInfo).port;
-    return { port, file };
+    return { port, file, listsDir: dir };
   }
 
   it('GET creates the file with headers when missing', async () => {
@@ -84,5 +84,50 @@ describe('dev file server', () => {
     await gateway.write(serializeWorkbook(rows));
     const after = await gateway.read();
     expect(parseWorkbook(after as ArrayBuffer)).toEqual(rows);
+  });
+
+  describe('text list endpoint', () => {
+    it('returns 404 for a missing list', async () => {
+      const { port } = await start();
+      const res = await fetch(`http://localhost:${port}/api/lista?week=2026-09-21`);
+      expect(res.status).toBe(404);
+    });
+
+    it('saves and reads back a list for a given week', async () => {
+      const { port } = await start();
+      const put = await fetch(`http://localhost:${port}/api/lista?week=2026-09-21`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        body: 'Menù della settimana: x\n\nLISTA DELLA SPESA\n- farina',
+      });
+      expect(put.ok).toBe(true);
+      const get = await fetch(`http://localhost:${port}/api/lista?week=2026-09-21`);
+      expect(get.status).toBe(200);
+      expect(await get.text()).toContain('- farina');
+    });
+
+    it('keeps lists of different weeks separate', async () => {
+      const { port } = await start();
+      await fetch(`http://localhost:${port}/api/lista?week=2026-09-21`, { method: 'PUT', body: 'settimana A' });
+      await fetch(`http://localhost:${port}/api/lista?week=2026-09-28`, { method: 'PUT', body: 'settimana B' });
+      const a = await (await fetch(`http://localhost:${port}/api/lista?week=2026-09-21`)).text();
+      const b = await (await fetch(`http://localhost:${port}/api/lista?week=2026-09-28`)).text();
+      expect(a).toBe('settimana A');
+      expect(b).toBe('settimana B');
+    });
+
+    it('rejects invalid or non-Monday week keys with 400', async () => {
+      const { port } = await start();
+      for (const bad of ['abc', '2026-02-30', '2026-09-20', '2026-09-21T00:00:00', '']) {
+        const res = await fetch(`http://localhost:${port}/api/lista?week=${encodeURIComponent(bad)}`);
+        expect(res.status).toBe(400);
+      }
+    });
+
+    it('still serves the menu endpoints', async () => {
+      const { port } = await start();
+      const res = await fetch(`http://localhost:${port}/api/menu`);
+      expect(res.ok).toBe(true);
+    });
   });
 });

@@ -9,8 +9,9 @@ import { createFileMiddleware } from './src/data/viteDevFilePlugin'
 const weeklyMenuDati = (): Plugin => ({
   name: 'weeklymenu-dati',
   configureServer(server) {
-    const filePath = path.resolve(process.cwd(), 'dati', 'menu.xlsx')
-    server.middlewares.use(createFileMiddleware(filePath) as Connect.NextHandleFunction)
+    const dataDir = path.resolve(process.cwd(), 'dati')
+    const filePath = path.join(dataDir, 'menu.xlsx')
+    server.middlewares.use(createFileMiddleware(filePath, dataDir) as Connect.NextHandleFunction)
   },
 })
 

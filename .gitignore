@@ -32,3 +32,4 @@ yarn-error.log*
 
 # app data
 /dati/*.xlsx
+/dati/*.txt

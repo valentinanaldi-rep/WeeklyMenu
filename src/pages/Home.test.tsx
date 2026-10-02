@@ -209,4 +209,21 @@ describe('Home week picker', () => {
     fireEvent.change(screen.getByTestId('week-picker'), { target: { value: '' } });
     expect(screen.getByTestId('week-range').textContent).toBe(before);
   });
+
+  it('opens the native picker when the week label is clicked', async () => {
+    const showPicker = vi.fn();
+    (HTMLInputElement.prototype as unknown as { showPicker: () => void }).showPicker = showPicker;
+    await renderHome();
+    fireEvent.click(screen.getByTestId('week-range'));
+    expect(showPicker).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not open the picker while editing', async () => {
+    const showPicker = vi.fn();
+    (HTMLInputElement.prototype as unknown as { showPicker: () => void }).showPicker = showPicker;
+    await renderHome([]);
+    await userEvent.click(await screen.findByTestId('edit-pencil'));
+    fireEvent.click(screen.getByTestId('week-range'));
+    expect(showPicker).not.toHaveBeenCalled();
+  });
 });

@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
   IonButton, IonCard, IonCardContent, IonContent, IonFab, IonFabButton,
   IonHeader, IonIcon, IonPage, IonTitle, IonToolbar,
 } from '@ionic/react';
-import { checkmark, chevronBack, chevronForward, close, pencil } from 'ionicons/icons';
+import {
+  checkmark, chevronBack, chevronDown, chevronForward, close, pencil,
+} from 'ionicons/icons';
 import { DevHttpFileGateway } from '../data/DevHttpFileGateway';
 import type { MenuRepository } from '../data/MenuRepository';
 import { XlsxMenuRepository } from '../data/MenuRepository';
@@ -65,6 +67,27 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
       return;
     }
     setWeekOffset(w => w + delta);
+  };
+
+  const weekPickerRef = useRef<HTMLInputElement>(null);
+
+  const openWeekPicker = () => {
+    if (mode === 'edit') {
+      return;
+    }
+    const input = weekPickerRef.current;
+    if (!input) {
+      return;
+    }
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker();
+      } catch {
+        input.focus();
+      }
+    } else {
+      input.focus();
+    }
   };
 
   const handleWeekPick = (e: ChangeEvent<HTMLInputElement>) => {
@@ -135,12 +158,14 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
           <IonButton fill="outline" data-testid="prev-week" disabled={mode === 'edit'} onClick={() => shiftWeek(-1)}>
             <IonIcon icon={chevronBack} />
           </IonButton>
-          <div className="week-picker">
+          <div className="week-picker" onClick={openWeekPicker}>
             <div className="week-nav__label" data-testid="week-range">
               {weekRangeLabel(weekStartIso)}
+              <IonIcon icon={chevronDown} />
             </div>
             <input
               type="week"
+              ref={weekPickerRef}
               className="week-picker__input"
               aria-label="Seleziona settimana"
               data-testid="week-picker"

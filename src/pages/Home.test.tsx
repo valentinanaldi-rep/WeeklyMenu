@@ -5,7 +5,8 @@ import type { MenuRepository } from '../data/MenuRepository';
 import { mergeWeek } from '../data/xlsxWorkbook';
 import type { MenuRow, WeekMenu } from '../domain/types';
 import {
-  parseIso, previousYearWeekStart, toDisplay, toIso, weekMenuFor, weekRangeLabel, weekStartForOffset,
+  parseIso, previousYearWeekStart, toDisplay, toIso, toIsoWeekValue, weekMenuFor,
+  weekRangeLabel, weekStartForOffset, weekStartFromIsoWeekValue,
 } from '../domain/week';
 import Home from './Home';
 
@@ -161,5 +162,51 @@ describe('Home edit', () => {
     expect(screen.getAllByTestId('edit-save')).toHaveLength(1);
     expect(screen.getAllByTestId('edit-cancel')).toHaveLength(1);
     expect(screen.queryByTestId('edit-pencil')).not.toBeInTheDocument();
+  });
+});
+
+describe('Home week picker', () => {
+  it('reflects the shown week and jumps to any selected week', async () => {
+    await renderHome();
+    const picker = screen.getByTestId('week-picker');
+    expect((picker as HTMLInputElement).value).toBe(toIsoWeekValue(toIso(weekStartForOffset(0))));
+    fireEvent.change(picker, { target: { value: '2027-W03' } });
+    expect(screen.getByTestId('week-range').textContent).toBe(
+      weekRangeLabel(weekStartFromIsoWeekValue('2027-W03') as string),
+    );
+  });
+
+  it('stays in sync with the prev/next arrows', async () => {
+    await renderHome();
+    fireEvent.click(screen.getByTestId('next-week'));
+    expect((screen.getByTestId('week-picker') as HTMLInputElement).value).toBe(
+      toIsoWeekValue(toIso(weekStartForOffset(1))),
+    );
+    fireEvent.click(screen.getByTestId('prev-week'));
+    expect((screen.getByTestId('week-picker') as HTMLInputElement).value).toBe(
+      toIsoWeekValue(toIso(weekStartForOffset(0))),
+    );
+  });
+
+  it('lets the user open weeks far in the past without saved data', async () => {
+    await renderHome();
+    fireEvent.change(screen.getByTestId('week-picker'), { target: { value: '2020-W05' } });
+    expect(screen.getByTestId('week-range').textContent).toBe(
+      weekRangeLabel(weekStartFromIsoWeekValue('2020-W05') as string),
+    );
+    expect(screen.getAllByTestId(/^lunch-\d$/)).toHaveLength(7);
+  });
+
+  it('is disabled while editing', async () => {
+    await renderHome([]);
+    await userEvent.click(await screen.findByTestId('edit-pencil'));
+    expect(screen.getByTestId('week-picker')).toBeDisabled();
+  });
+
+  it('ignores an empty picker value without navigating', async () => {
+    await renderHome();
+    const before = screen.getByTestId('week-range').textContent;
+    fireEvent.change(screen.getByTestId('week-picker'), { target: { value: '' } });
+    expect(screen.getByTestId('week-range').textContent).toBe(before);
   });
 });

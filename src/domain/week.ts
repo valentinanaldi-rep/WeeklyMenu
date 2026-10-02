@@ -66,3 +66,34 @@ export function weekRangeLabel(weekStartIso: string): string {
 export function previousYearWeekStart(weekStartIso: string): string {
   return toIso(addDays(parseIso(weekStartIso), -364));
 }
+
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+export function offsetForWeekStart(targetWeekStartIso: string): number {
+  const target = parseIso(targetWeekStartIso);
+  const current = startOfWeekToday();
+  return Math.round((target.getTime() - current.getTime()) / MS_PER_WEEK);
+}
+
+export function toIsoWeekValue(weekStartIso: string): string {
+  const monday = parseIso(weekStartIso);
+  const thursday = addDays(monday, 3 - ((monday.getUTCDay() + 6) % 7));
+  const isoYear = thursday.getUTCFullYear();
+  const mondayOfWeek1 = startOfWeek(utc(isoYear, 1, 4));
+  const week = Math.round((thursday.getTime() - mondayOfWeek1.getTime()) / MS_PER_WEEK) + 1;
+  return `${isoYear}-W${String(week).padStart(2, '0')}`;
+}
+
+export function weekStartFromIsoWeekValue(value: string): string | null {
+  const match = /^(\d{4})-W(\d{2})$/.exec(value);
+  if (!match) {
+    return null;
+  }
+  const isoYear = Number(match[1]);
+  const week = Number(match[2]);
+  if (week < 1 || week > 53) {
+    return null;
+  }
+  const mondayOfWeek1 = startOfWeek(utc(isoYear, 1, 4));
+  return toIso(addDays(mondayOfWeek1, (week - 1) * 7));
+}

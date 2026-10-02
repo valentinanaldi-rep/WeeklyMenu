@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
   IonButton, IonCard, IonCardContent, IonContent, IonFab, IonFabButton,
   IonHeader, IonIcon, IonPage, IonTitle, IonToolbar,
@@ -9,8 +9,8 @@ import type { MenuRepository } from '../data/MenuRepository';
 import { XlsxMenuRepository } from '../data/MenuRepository';
 import type { DayMenu, MenuRow, WeekMenu } from '../domain/types';
 import {
-  dateForDay, parseIso, previousYearWeekStart, toDisplay, toIso,
-  weekMenuFor, weekRangeLabel, weekStartForOffset,
+  dateForDay, offsetForWeekStart, parseIso, previousYearWeekStart, toDisplay, toIso,
+  toIsoWeekValue, weekMenuFor, weekRangeLabel, weekStartForOffset, weekStartFromIsoWeekValue,
 } from '../domain/week';
 import './Home.css';
 
@@ -65,6 +65,14 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
       return;
     }
     setWeekOffset(w => w + delta);
+  };
+
+  const handleWeekPick = (e: ChangeEvent<HTMLInputElement>) => {
+    const target = weekStartFromIsoWeekValue(e.target.value);
+    if (target === null) {
+      return;
+    }
+    setWeekOffset(offsetForWeekStart(target));
   };
 
   const handleEdit = () => {
@@ -127,8 +135,19 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
           <IonButton fill="outline" data-testid="prev-week" disabled={mode === 'edit'} onClick={() => shiftWeek(-1)}>
             <IonIcon icon={chevronBack} />
           </IonButton>
-          <div className="week-nav__label" data-testid="week-range">
-            {weekRangeLabel(weekStartIso)}
+          <div className="week-picker">
+            <div className="week-nav__label" data-testid="week-range">
+              {weekRangeLabel(weekStartIso)}
+            </div>
+            <input
+              type="week"
+              className="week-picker__input"
+              aria-label="Seleziona settimana"
+              data-testid="week-picker"
+              value={toIsoWeekValue(weekStartIso)}
+              disabled={mode === 'edit'}
+              onChange={handleWeekPick}
+            />
           </div>
           <IonButton fill="outline" data-testid="next-week" disabled={mode === 'edit'} onClick={() => shiftWeek(1)}>
             <IonIcon icon={chevronForward} />

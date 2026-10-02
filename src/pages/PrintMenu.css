@@ -1,0 +1,41 @@
+.print-sheet {
+  padding: 24px;
+}
+
+.print-title {
+  margin: 0 0 8px;
+  font-size: 1.4rem;
+}
+
+.print-range {
+  margin: 0 0 16px;
+  color: var(--ion-color-medium);
+}
+
+.print-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.print-table th,
+.print-table td {
+  border: 1px solid var(--ion-color-medium);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+@media print {
+  .printable-page {
+    --background: #fff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  ion-content {
+    --padding-top: 0;
+    --padding-bottom: 0;
+  }
+}

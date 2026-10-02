@@ -23,6 +23,7 @@ function seededStore(rows: MenuRow[]): MenuRepository {
       store.length = 0;
       store.push(...merged);
     }),
+    exportWorkbook: vi.fn(async () => new ArrayBuffer(0)),
   };
 }
 

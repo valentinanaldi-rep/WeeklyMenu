@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { WeekMenu } from '../domain/types';
 import { InMemoryFileGateway } from './FileGateway';
 import { XlsxMenuRepository } from './MenuRepository';
-import { emptyWorkbook } from './xlsxWorkbook';
+import { emptyWorkbook, parseWorkbook } from './xlsxWorkbook';
 
 const weekA: WeekMenu = {
   weekStart: '2026-02-23',
@@ -75,5 +75,18 @@ describe('XlsxMenuRepository', () => {
     await repo.saveWeek({ ...weekA, days: weekA.days.map(d => ({ ...d, lunch: '=A1+B1' })) });
     const rows = await repo.loadWeeks();
     expect(rows.every(r => r.lunch === '=A1+B1')).toBe(true);
+  });
+
+  it('exportWorkbook returns the whole stored workbook', async () => {
+    const repo = new XlsxMenuRepository(new InMemoryFileGateway());
+    await repo.saveWeek(weekA);
+    const bytes = await repo.exportWorkbook();
+    expect(parseWorkbook(bytes)).toHaveLength(7);
+  });
+
+  it('exportWorkbook falls back to a header-only workbook when empty', async () => {
+    const repo = new XlsxMenuRepository(new InMemoryFileGateway());
+    const bytes = await repo.exportWorkbook();
+    expect(parseWorkbook(bytes)).toEqual([]);
   });
 });

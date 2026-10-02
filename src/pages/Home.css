@@ -23,6 +23,7 @@
   position: relative;
   flex: 1;
   min-width: 0;
+  cursor: pointer;
 }
 
 .week-picker__input {
@@ -44,6 +45,7 @@
 
 .day-list ion-card {
   margin: 0 0 6px;
+  cursor: pointer;
 }
 
 .day-list ion-card-content {
@@ -103,6 +105,16 @@
   padding: 10px 16px;
   border-radius: 8px;
   z-index: 10;
+}
+
+ion-button,
+ion-fab-button {
+  cursor: pointer;
+}
+
+ion-button[disabled],
+ion-fab-button[disabled] {
+  cursor: default;
 }
 
 ion-button::part(native),

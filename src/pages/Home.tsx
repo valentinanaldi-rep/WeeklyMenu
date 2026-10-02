@@ -14,7 +14,7 @@ import {
 } from '../domain/week';
 import './Home.css';
 
-export function createDevRepository(): MenuRepository {
+function createDevRepository(): MenuRepository {
   return new XlsxMenuRepository(new DevHttpFileGateway());
 }
 
@@ -23,6 +23,7 @@ interface HomeProps {
 }
 
 const EMPTY_TEXT = '—';
+const TOAST_MS = 3000;
 
 const Home: React.FC<HomeProps> = ({ repository }) => {
   const repo = useMemo(() => repository ?? createDevRepository(), [repository]);
@@ -44,6 +45,14 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+    const timer = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
   const weekStartIso = toIso(weekStartForOffset(weekOffset));
   const week = weekMenuFor(weekStartIso);
   const display = draft ?? week;
@@ -51,15 +60,27 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
   const mealFor = (day: DayMenu, field: 'lunch' | 'dinner') =>
     rows.find(r => r.date === day.date)?.[field] ?? '';
 
+  const shiftWeek = (delta: number) => {
+    if (mode === 'edit') {
+      return;
+    }
+    setWeekOffset(w => w + delta);
+  };
+
   const handleEdit = () => {
     if (mode === 'edit') {
       return;
     }
     const prevStart = previousYearWeekStart(weekStartIso);
-    const prev = rows.filter(r => r.weekStart === prevStart);
+    const lastYear = new Map(
+      rows.filter(r => r.weekStart === prevStart).map(r => [r.date, r]),
+    );
+    const currentWeek = new Map(
+      rows.filter(r => r.weekStart === weekStartIso).map(r => [r.date, r]),
+    );
     const nextDraft = weekMenuFor(weekStartIso);
     nextDraft.days = nextDraft.days.map((day, i) => {
-      const source = prev.find(r => r.date === dateForDay(prevStart, i));
+      const source = currentWeek.get(day.date) ?? lastYear.get(dateForDay(prevStart, i));
       return source ? { ...day, lunch: source.lunch, dinner: source.dinner } : day;
     });
     setDraft(nextDraft);
@@ -103,13 +124,13 @@ const Home: React.FC<HomeProps> = ({ repository }) => {
       </IonHeader>
       <IonContent fullscreen>
         <div className="week-nav">
-          <IonButton fill="outline" data-testid="prev-week" onClick={() => setWeekOffset(w => w - 1)}>
+          <IonButton fill="outline" data-testid="prev-week" disabled={mode === 'edit'} onClick={() => shiftWeek(-1)}>
             <IonIcon icon={chevronBack} />
           </IonButton>
           <div className="week-nav__label" data-testid="week-range">
             {weekRangeLabel(weekStartIso)}
           </div>
-          <IonButton fill="outline" data-testid="next-week" onClick={() => setWeekOffset(w => w + 1)}>
+          <IonButton fill="outline" data-testid="next-week" disabled={mode === 'edit'} onClick={() => shiftWeek(1)}>
             <IonIcon icon={chevronForward} />
           </IonButton>
         </div>

@@ -1,11 +1,11 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { MenuRepository } from '../data/MenuRepository';
 import { mergeWeek } from '../data/xlsxWorkbook';
 import type { MenuRow, WeekMenu } from '../domain/types';
 import {
-  previousYearWeekStart, toIso, weekMenuFor, weekRangeLabel, weekStartForOffset,
+  parseIso, previousYearWeekStart, toDisplay, toIso, weekMenuFor, weekRangeLabel, weekStartForOffset,
 } from '../domain/week';
 import Home from './Home';
 
@@ -115,6 +115,44 @@ describe('Home edit', () => {
     expect(repo.saveWeek).not.toHaveBeenCalled();
     expect(screen.queryByTestId('edit-save')).not.toBeInTheDocument();
     expect(screen.queryByTestId('lunch-0')?.tagName).not.toBe('TEXTAREA');
+  });
+
+  it('prefills from the current week when it already has saved meals', async () => {
+    const current = weekMenuFor(curStart);
+    current.days[0].lunch = 'Polenta e formaggio';
+    current.days[1].dinner = 'Tortino';
+    await renderHome(weekRows(current));
+    await userEvent.click(await screen.findByTestId('edit-pencil'));
+    expect((screen.getByTestId('lunch-0') as HTMLTextAreaElement).value).toBe('Polenta e formaggio');
+    expect((screen.getByTestId('dinner-1') as HTMLTextAreaElement).value).toBe('Tortino');
+  });
+
+  it('keeps the edited week on screen while a draft is open', async () => {
+    await renderHome([]);
+    await userEvent.click(await screen.findByTestId('edit-pencil'));
+    const rangeBeforeEdit = screen.getByTestId('week-range').textContent;
+    fireEvent.click(screen.getByTestId('next-week'));
+    expect(screen.getByTestId('week-range').textContent).toBe(rangeBeforeEdit);
+    expect(screen.getByTestId('day-date-0').textContent).toBe(
+      toDisplay(parseIso(weekMenuFor(curStart).days[0].date)),
+    );
+  });
+
+  it('dismisses the confirmation toast on its own', async () => {
+    await renderHome([]);
+    fireEvent.click(screen.getByTestId('edit-pencil'));
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByTestId('edit-save'));
+      await act(async () => {});
+      expect(screen.getByTestId('toast')).toHaveTextContent('Menù salvato');
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
+      expect(screen.queryByTestId('toast')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('entering edit mode shows one save/cancel and hides the pencil', async () => {

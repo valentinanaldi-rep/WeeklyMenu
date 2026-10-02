@@ -4,6 +4,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 12px 12px 8px;
+  cursor: pointer;
 }
 
 .week-nav__label {
@@ -110,11 +111,6 @@
 ion-button,
 ion-fab-button {
   cursor: pointer;
-}
-
-ion-button[disabled],
-ion-fab-button[disabled] {
-  cursor: default;
 }
 
 ion-button::part(native),

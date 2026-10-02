@@ -43,6 +43,10 @@ async function renderList(initial: string | null = null) {
   return { repo, lists };
 }
 
+function disabled(el: HTMLElement): boolean {
+  return (el as HTMLInputElement).disabled;
+}
+
 describe('ShoppingList', () => {
   it('shows the week range and the menu note', async () => {
     await renderList();
@@ -113,7 +117,7 @@ describe('ShoppingList', () => {
   });
 
   it('shows an error toast when the deletion fails', async () => {
-    const custom = fakeList(null);
+    const custom = fakeList(`nota\n\n${LIST_MARKER}\n- farina`);
     custom.deleteText = vi.fn(async () => {
       throw new Error('boom');
     });
@@ -122,5 +126,45 @@ describe('ShoppingList', () => {
     fireEvent.click(screen.getByTestId('list-delete'));
     fireEvent.click(screen.getByTestId('delete-confirm'));
     await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('Errore nella cancellazione della lista'));
+  });
+
+  it('keeps Salva in Dati disabled while the list is empty', async () => {
+    await renderList();
+    expect(disabled(screen.getByTestId('list-save'))).toBe(true);
+  });
+
+  it('enables Salva in Dati once items are typed', async () => {
+    await renderList();
+    fireEvent.change(screen.getByTestId('shopping-items'), { target: { value: 'farina' } });
+    expect(disabled(screen.getByTestId('list-save'))).toBe(false);
+  });
+
+  it('keeps Cancella lista disabled when no list exists', async () => {
+    await renderList();
+    await waitFor(() => expect(disabled(screen.getByTestId('list-delete'))).toBe(true));
+  });
+
+  it('enables Cancella lista when a saved list exists', async () => {
+    const lists = fakeList(`nota\n\n${LIST_MARKER}\n- farina`);
+    render(<ShoppingList week={week} repository={fakeRepo()} textGateway={lists} />);
+    await screen.findByText('Lista della spesa');
+    expect(disabled(screen.getByTestId('list-delete'))).toBe(false);
+  });
+
+  it('enables Cancella lista after a successful save', async () => {
+    await renderList();
+    fireEvent.change(screen.getByTestId('shopping-items'), { target: { value: 'farina' } });
+    fireEvent.click(screen.getByTestId('list-save'));
+    await waitFor(() => expect(disabled(screen.getByTestId('list-delete'))).toBe(false));
+  });
+
+  it('disables Cancella lista and clears the list after deletion', async () => {
+    const lists = fakeList(`nota\n\n${LIST_MARKER}\n- farina`);
+    render(<ShoppingList week={week} repository={fakeRepo()} textGateway={lists} />);
+    await screen.findByText('Lista della spesa');
+    fireEvent.click(screen.getByTestId('list-delete'));
+    fireEvent.click(screen.getByTestId('delete-confirm'));
+    await waitFor(() => expect(disabled(screen.getByTestId('list-delete'))).toBe(true));
+    expect(disabled(screen.getByTestId('list-save'))).toBe(true);
   });
 });

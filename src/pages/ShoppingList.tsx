@@ -4,7 +4,7 @@ import {
   IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonPage,
   IonTitle, IonToolbar,
 } from '@ionic/react';
-import { DevHttpFileGateway } from '../data/DevHttpFileGateway';
+import { createFileGateway } from '../data/createFileGateway';
 import { DevHttpTextGateway } from '../data/DevHttpTextGateway';
 import { XlsxMenuRepository, type MenuRepository } from '../data/MenuRepository';
 import type { TextFileGateway } from '../data/TextFileGateway';
@@ -27,7 +27,7 @@ export const ShoppingListRoute: React.FC = () => {
 };
 
 const ShoppingList: React.FC<ShoppingListProps> = ({ week, repository, textGateway }) => {
-  const repo = useMemo(() => repository ?? new XlsxMenuRepository(new DevHttpFileGateway()), [repository]);
+  const repo = useMemo(() => repository ?? new XlsxMenuRepository(createFileGateway()), [repository]);
   const lists = useMemo(() => textGateway ?? new DevHttpTextGateway(), [textGateway]);
   const [note, setNote] = useState('');
   const [items, setItems] = useState('');

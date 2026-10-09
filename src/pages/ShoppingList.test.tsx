@@ -18,6 +18,7 @@ function fakeRepo(): MenuRepository {
     loadWeeks: vi.fn(async () => rows),
     saveWeek: vi.fn(),
     exportWorkbook: vi.fn(),
+    importWorkbook: vi.fn(async () => {}),
   };
 }
 

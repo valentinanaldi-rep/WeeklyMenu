@@ -4,7 +4,7 @@ import {
   IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonPage,
   IonTitle, IonToolbar,
 } from '@ionic/react';
-import { DevHttpFileGateway } from '../data/DevHttpFileGateway';
+import { createFileGateway } from '../data/createFileGateway';
 import { XlsxMenuRepository, type MenuRepository } from '../data/MenuRepository';
 import type { MenuRow } from '../domain/types';
 import { parseIso, toDisplay, weekRangeLabel } from '../domain/week';
@@ -23,7 +23,7 @@ export const PrintMenuRoute: React.FC = () => {
 };
 
 const PrintMenu: React.FC<PrintMenuProps> = ({ week, repository }) => {
-  const repo = useMemo(() => repository ?? new XlsxMenuRepository(new DevHttpFileGateway()), [repository]);
+  const repo = useMemo(() => repository ?? new XlsxMenuRepository(createFileGateway()), [repository]);
   const [rows, setRows] = useState<MenuRow[]>([]);
 
   const load = useCallback(async () => {

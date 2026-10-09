@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { WeekMenu } from '../domain/types';
 import { InMemoryFileGateway } from './FileGateway';
 import { XlsxMenuRepository } from './MenuRepository';
-import { emptyWorkbook, parseWorkbook } from './xlsxWorkbook';
+import { emptyWorkbook, parseWorkbook, serializeWorkbook } from './xlsxWorkbook';
 
 const weekA: WeekMenu = {
   weekStart: '2026-02-23',
@@ -88,5 +88,36 @@ describe('XlsxMenuRepository', () => {
     const repo = new XlsxMenuRepository(new InMemoryFileGateway());
     const bytes = await repo.exportWorkbook();
     expect(parseWorkbook(bytes)).toEqual([]);
+  });
+
+  it('importWorkbook replaces the stored workbook with the selected one', async () => {
+    const gateway = new InMemoryFileGateway(serializeWorkbook(
+      weekA.days.map(d => ({ weekStart: weekA.weekStart, ...d })),
+    ));
+    const repo = new XlsxMenuRepository(gateway);
+    const incoming = serializeWorkbook(weekB.days.map(d => ({ weekStart: weekB.weekStart, ...d })));
+    await repo.importWorkbook(incoming);
+    const rows = await repo.loadWeeks();
+    expect(rows).toHaveLength(7);
+    expect(rows.every(r => r.weekStart === '2026-03-02')).toBe(true);
+  });
+
+  it('importWorkbook rejects a corrupt buffer keeping the stored DB', async () => {
+    const repo = new XlsxMenuRepository(new InMemoryFileGateway(serializeWorkbook(
+      weekA.days.map(d => ({ weekStart: weekA.weekStart, ...d })),
+    )));
+    const garbage = new TextEncoder().encode('non è un file xlsx').buffer;
+    await expect(repo.importWorkbook(garbage)).rejects.toThrow();
+    const rows = await repo.loadWeeks();
+    expect(rows).toHaveLength(7);
+    expect(rows.every(r => r.weekStart === '2026-02-23')).toBe(true);
+  });
+
+  it('importWorkbook rejects a header-only workbook keeping the stored DB', async () => {
+    const repo = new XlsxMenuRepository(new InMemoryFileGateway(serializeWorkbook(
+      weekA.days.map(d => ({ weekStart: weekA.weekStart, ...d })),
+    )));
+    await expect(repo.importWorkbook(emptyWorkbook())).rejects.toThrow();
+    expect(await repo.loadWeeks()).toHaveLength(7);
   });
 });

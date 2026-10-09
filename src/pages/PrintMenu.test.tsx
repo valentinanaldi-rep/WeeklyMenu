@@ -15,6 +15,7 @@ function fakeRepo(): MenuRepository {
     loadWeeks: vi.fn(async () => rows),
     saveWeek: vi.fn(),
     exportWorkbook: vi.fn(),
+    importWorkbook: vi.fn(async () => {}),
   };
 }
 
@@ -33,7 +34,7 @@ describe('PrintMenu', () => {
   });
 
   it('still shows the sheet for a week without saved rows', async () => {
-    const emptyRepo: MenuRepository = { loadWeeks: vi.fn(async () => []), saveWeek: vi.fn(), exportWorkbook: vi.fn() };
+    const emptyRepo: MenuRepository = { loadWeeks: vi.fn(async () => []), saveWeek: vi.fn(), exportWorkbook: vi.fn(), importWorkbook: vi.fn() };
     render(<PrintMenu week={week} repository={emptyRepo} />);
     await screen.findByText('Menù settimanale');
     expect(screen.getByTestId('print-range').textContent).toBe('dal 21/09/2026 al 27/09/2026');

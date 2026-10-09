@@ -6,6 +6,7 @@ export interface MenuRepository {
   loadWeeks(): Promise<MenuRow[]>;
   saveWeek(week: WeekMenu): Promise<void>;
   exportWorkbook(): Promise<ArrayBuffer>;
+  importWorkbook(buffer: ArrayBuffer): Promise<void>;
 }
 
 export class XlsxMenuRepository implements MenuRepository {
@@ -26,5 +27,18 @@ export class XlsxMenuRepository implements MenuRepository {
   async exportWorkbook(): Promise<ArrayBuffer> {
     const buffer = await this.gateway.read();
     return buffer ?? emptyWorkbook();
+  }
+
+  async importWorkbook(buffer: ArrayBuffer): Promise<void> {
+    let rows: MenuRow[];
+    try {
+      rows = parseWorkbook(buffer);
+    } catch {
+      throw new Error('Il file selezionato non è un workbook valido');
+    }
+    if (rows.length === 0) {
+      throw new Error('Il file selezionato non contiene dati di menù');
+    }
+    await this.gateway.write(buffer);
   }
 }

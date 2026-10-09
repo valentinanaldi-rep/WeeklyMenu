@@ -29,6 +29,7 @@ function seededStore(rows: MenuRow[]): MenuRepository {
       store.push(...merged);
     }),
     exportWorkbook: vi.fn(async () => new ArrayBuffer(0)),
+    importWorkbook: vi.fn(async () => {}),
   };
 }
 
@@ -276,5 +277,71 @@ describe('Home hamburger menu', () => {
     expect(brand?.textContent).toBe('Weekly Menu');
     expect(brand?.className).toBe('toolbar-brand');
     expect(toggle.closest('ion-toolbar')).toBe(title.closest('ion-toolbar'));
+  });
+});
+
+describe('Home import DB', () => {
+  it('shows the Importa il DB entry', async () => {
+    await renderHome();
+    expect(screen.getByTestId('menu-import')).toHaveTextContent('Importa il DB');
+  });
+
+  it('asks for confirmation before importing', async () => {
+    const repo = await renderHome();
+    fireEvent.click(screen.getByTestId('menu-import'));
+    expect(screen.getByTestId('import-confirm')).toHaveTextContent('Sì, importa');
+    expect(screen.getByTestId('import-cancel')).toBeInTheDocument();
+    expect(repo.importWorkbook).not.toHaveBeenCalled();
+  });
+
+  it('cancel closes the confirmation without importing', async () => {
+    const repo = await renderHome();
+    fireEvent.click(screen.getByTestId('menu-import'));
+    fireEvent.click(screen.getByTestId('import-cancel'));
+    expect(screen.queryByTestId('import-confirm')).not.toBeInTheDocument();
+    expect(repo.importWorkbook).not.toHaveBeenCalled();
+  });
+
+  it('imports the selected file, reloads the menu and shows a toast', async () => {
+    const repo = await renderHome();
+    const loadsBefore = vi.mocked(repo.loadWeeks).mock.calls.length;
+    fireEvent.click(screen.getByTestId('menu-import'));
+    fireEvent.click(screen.getByTestId('import-confirm'));
+    const input = screen.getByTestId('import-input') as HTMLInputElement;
+    const file = new File([new Uint8Array([1, 2, 3])], 'menu.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => expect(vi.mocked(repo.importWorkbook)).toHaveBeenCalledTimes(1));
+    const buffer = vi.mocked(repo.importWorkbook).mock.calls[0][0];
+    expect(buffer).toBeInstanceOf(ArrayBuffer);
+    expect(new Uint8Array(buffer)).toEqual(new Uint8Array([1, 2, 3]));
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('DB importato'));
+    expect(vi.mocked(repo.loadWeeks).mock.calls.length).toBe(loadsBefore + 1);
+    expect(screen.queryByTestId('import-confirm')).not.toBeInTheDocument();
+  });
+
+  it('keeps the DB untouched and shows an error toast on invalid files', async () => {
+    const repo = await renderHome();
+    vi.mocked(repo.importWorkbook).mockRejectedValueOnce(new Error('invalido'));
+    const loadsBefore = vi.mocked(repo.loadWeeks).mock.calls.length;
+    fireEvent.click(screen.getByTestId('menu-import'));
+    fireEvent.click(screen.getByTestId('import-confirm'));
+    const input = screen.getByTestId('import-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['non xlsx'], 'menu.xlsx')] } });
+    await waitFor(() => expect(vi.mocked(repo.importWorkbook)).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('toast')).toHaveTextContent('File non valido, DB invariato');
+    expect(vi.mocked(repo.loadWeeks).mock.calls.length).toBe(loadsBefore);
+  });
+
+  it('does nothing when the picker is closed without a file', async () => {
+    const repo = await renderHome();
+    fireEvent.click(screen.getByTestId('menu-import'));
+    fireEvent.click(screen.getByTestId('import-confirm'));
+    const input = screen.getByTestId('import-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [] } });
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(repo.importWorkbook).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('toast')).not.toBeInTheDocument();
   });
 });

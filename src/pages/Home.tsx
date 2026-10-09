@@ -6,9 +6,9 @@ import {
 } from '@ionic/react';
 import {
   cart, checkmark, chevronBack, chevronDown, chevronForward, close, download,
-  pencil, print,
+  pencil, print, cloudUpload,
 } from 'ionicons/icons';
-import { DevHttpFileGateway } from '../data/DevHttpFileGateway';
+import { createFileGateway } from '../data/createFileGateway';
 import type { MenuRepository } from '../data/MenuRepository';
 import { XlsxMenuRepository } from '../data/MenuRepository';
 import { saveWorkbookToDisk } from '../data/exportWorkbook';
@@ -20,7 +20,7 @@ import {
 import './Home.css';
 
 function createDevRepository(): MenuRepository {
-  return new XlsxMenuRepository(new DevHttpFileGateway());
+  return new XlsxMenuRepository(createFileGateway());
 }
 
 interface HomeProps {
@@ -42,6 +42,8 @@ const Home: React.FC<HomeProps> = ({ repository, onNavigate }) => {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [draft, setDraft] = useState<WeekMenu | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [confirmImport, setConfirmImport] = useState(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -169,6 +171,28 @@ const Home: React.FC<HomeProps> = ({ repository, onNavigate }) => {
     }
   };
 
+  const handleImportConfirm = () => {
+    setConfirmImport(false);
+    importInputRef.current?.click();
+  };
+
+  const handleImportFilePicked = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) {
+      return;
+    }
+    try {
+      await repo.importWorkbook(await file.arrayBuffer());
+      void menuRef.current?.close();
+      await load();
+      setToast('DB importato');
+    } catch {
+      void menuRef.current?.close();
+      setToast('File non valido, DB invariato');
+    }
+  };
+
   return (
     <>
       <IonMenu contentId="main-content" ref={menuRef}>
@@ -191,9 +215,35 @@ const Home: React.FC<HomeProps> = ({ repository, onNavigate }) => {
               <IonIcon icon={download} slot="start" />
               <IonLabel>Esporta tutto il DB</IonLabel>
             </IonItem>
+            {confirmImport ? (
+              <>
+                <IonItem data-testid="import-cancel" button onClick={() => setConfirmImport(false)}>
+                  <IonIcon icon={close} slot="start" />
+                  <IonLabel>Annulla</IonLabel>
+                </IonItem>
+                <IonItem data-testid="import-confirm" button onClick={handleImportConfirm}>
+                  <IonIcon icon={checkmark} slot="start" />
+                  <IonLabel>Sì, importa</IonLabel>
+                </IonItem>
+              </>
+            ) : (
+              <IonItem data-testid="menu-import" button onClick={() => setConfirmImport(true)}>
+                <IonIcon icon={cloudUpload} slot="start" />
+                <IonLabel>Importa il DB</IonLabel>
+              </IonItem>
+            )}
           </IonList>
         </IonContent>
       </IonMenu>
+
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        data-testid="import-input"
+        style={{ display: 'none' }}
+        onChange={handleImportFilePicked}
+      />
 
     <IonPage id="main-content">
       <IonHeader>

@@ -41,7 +41,7 @@
 }
 
 .day-list {
-  padding: 0 12px 100px;
+  padding: 0 12px 140px;
 }
 
 .day-list ion-card {
@@ -143,6 +143,10 @@ ion-fab-button[data-testid] {
   --background-hover-opacity: 0;
   --background-focused: transparent;
   --background-focused-opacity: 0;
+}
+
+ion-fab[slot="fixed"][vertical="bottom"] {
+  bottom: calc(var(--ion-safe-area-bottom, 0px) + 24px);
 }
 
 ion-button[fill="outline"] {

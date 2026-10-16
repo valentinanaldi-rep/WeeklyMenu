@@ -1,8 +1,15 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MenuRepository } from '../data/MenuRepository';
+import { printCurrentPage } from '../data/printMenu';
 import type { MenuRow } from '../domain/types';
 import PrintMenu from './PrintMenu';
+
+vi.mock('../data/printMenu', () => ({
+  printCurrentPage: vi.fn(async () => {}),
+}));
+
+const printCurrentPageMock = vi.mocked(printCurrentPage);
 
 const week = '2026-09-21';
 const rows: MenuRow[] = [
@@ -44,6 +51,14 @@ describe('PrintMenu', () => {
     render(<PrintMenu week={week} repository={fakeRepo()} />);
     await screen.findByText('Menù settimanale');
     fireEvent.click(screen.getByTestId('print-button'));
-    expect(window.print).toHaveBeenCalledTimes(1);
+    expect(printCurrentPageMock).toHaveBeenCalledWith('Menù settimanale');
+  });
+
+  it('shows an error toast if printing fails', async () => {
+    printCurrentPageMock.mockRejectedValueOnce(new Error('boom'));
+    render(<PrintMenu week={week} repository={fakeRepo()} />);
+    await screen.findByText('Menù settimanale');
+    fireEvent.click(screen.getByTestId('print-button'));
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('Errore nella stampa'));
   });
 });

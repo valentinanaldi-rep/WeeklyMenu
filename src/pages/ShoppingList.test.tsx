@@ -82,6 +82,16 @@ describe('ShoppingList', () => {
     expect(screen.getByTestId('toast')).toHaveTextContent('Nessuna lista per questa settimana');
   });
 
+  it('shows an error toast when the list cannot be loaded', async () => {
+    const custom = fakeList();
+    custom.readText = vi.fn(async () => {
+      throw new Error('boom');
+    });
+    render(<ShoppingList week={week} repository={fakeRepo()} textGateway={custom} />);
+    await screen.findByText('Lista della spesa');
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('Impossibile caricare la lista'));
+  });
+
   it('asks for confirmation before deleting the list', async () => {
     const custom = fakeList(`nota\n\n${LIST_MARKER}\n- farina`);
     render(<ShoppingList week={week} repository={fakeRepo()} textGateway={custom} />);

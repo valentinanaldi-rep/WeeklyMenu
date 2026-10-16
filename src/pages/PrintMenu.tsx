@@ -8,9 +8,11 @@ import { createFileGateway } from '../data/createFileGateway';
 import { XlsxMenuRepository, type MenuRepository } from '../data/MenuRepository';
 import type { MenuRow } from '../domain/types';
 import { parseIso, toDisplay, weekRangeLabel } from '../domain/week';
+import { printCurrentPage } from '../data/printMenu';
 import './PrintMenu.css';
 
 const EMPTY = '—';
+const TOAST_MS = 3000;
 
 export interface PrintMenuProps {
   week: string;
@@ -25,6 +27,7 @@ export const PrintMenuRoute: React.FC = () => {
 const PrintMenu: React.FC<PrintMenuProps> = ({ week, repository }) => {
   const repo = useMemo(() => repository ?? new XlsxMenuRepository(createFileGateway()), [repository]);
   const [rows, setRows] = useState<MenuRow[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -37,6 +40,22 @@ const PrintMenu: React.FC<PrintMenuProps> = ({ week, repository }) => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+    const timer = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const handlePrint = async () => {
+    try {
+      await printCurrentPage('Menù settimanale');
+    } catch {
+      setToast('Errore nella stampa');
+    }
+  };
 
   const days = useMemo(
     () =>
@@ -54,7 +73,7 @@ const PrintMenu: React.FC<PrintMenuProps> = ({ week, repository }) => {
             <IonBackButton defaultHref="/home" />
           </IonButtons>
           <IonTitle>Stampa menù</IonTitle>
-          <IonButton slot="end" data-testid="print-button" onClick={() => window.print()}>
+          <IonButton slot="end" data-testid="print-button" onClick={() => void handlePrint()}>
             Stampa
           </IonButton>
         </IonToolbar>
@@ -82,6 +101,7 @@ const PrintMenu: React.FC<PrintMenuProps> = ({ week, repository }) => {
             </tbody>
           </table>
         </div>
+        {toast && <div className="toast" data-testid="toast">{toast}</div>}
       </IonContent>
     </IonPage>
   );

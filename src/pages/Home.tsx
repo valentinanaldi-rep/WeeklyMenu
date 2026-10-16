@@ -165,7 +165,10 @@ const Home: React.FC<HomeProps> = ({ repository, onNavigate }) => {
   const handleExportDb = async () => {
     try {
       const buffer = await repo.exportWorkbook();
-      await saveWorkbookToDisk(buffer, `WeeklyMenu_${toIso(new Date())}.xlsx`);
+      const result = await saveWorkbookToDisk(buffer, `WeeklyMenu_${toIso(new Date())}.xlsx`);
+      if (result === 'saved') {
+        setToast('DB esportato');
+      }
     } catch {
       setToast("Errore nell'esportazione");
     }

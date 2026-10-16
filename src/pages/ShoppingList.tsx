@@ -5,7 +5,7 @@ import {
   IonTitle, IonToolbar,
 } from '@ionic/react';
 import { createFileGateway } from '../data/createFileGateway';
-import { DevHttpTextGateway } from '../data/DevHttpTextGateway';
+import { createTextFileGateway } from '../data/createTextFileGateway';
 import { XlsxMenuRepository, type MenuRepository } from '../data/MenuRepository';
 import type { TextFileGateway } from '../data/TextFileGateway';
 import { composeListFile, menuNote, parseListFile } from '../domain/menuNote';
@@ -28,7 +28,7 @@ export const ShoppingListRoute: React.FC = () => {
 
 const ShoppingList: React.FC<ShoppingListProps> = ({ week, repository, textGateway }) => {
   const repo = useMemo(() => repository ?? new XlsxMenuRepository(createFileGateway()), [repository]);
-  const lists = useMemo(() => textGateway ?? new DevHttpTextGateway(), [textGateway]);
+  const lists = useMemo(() => textGateway ?? createTextFileGateway(), [textGateway]);
   const [note, setNote] = useState('');
   const [items, setItems] = useState('');
   const [toast, setToast] = useState<string | null>(null);
@@ -45,14 +45,18 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ week, repository, textGatew
   }, [repo, week]);
 
   const loadList = useCallback(async () => {
-    const content = await lists.readText(week);
-    if (content === null) {
-      setHasList(false);
-      setToast('Nessuna lista per questa settimana');
-      return;
+    try {
+      const content = await lists.readText(week);
+      if (content === null) {
+        setHasList(false);
+        setToast('Nessuna lista per questa settimana');
+        return;
+      }
+      setHasList(true);
+      setItems(parseListFile(content).items.join('\n'));
+    } catch {
+      setToast('Impossibile caricare la lista');
     }
-    setHasList(true);
-    setItems(parseListFile(content).items.join('\n'));
   }, [lists, week]);
 
   useEffect(() => {

@@ -145,8 +145,12 @@ ion-fab-button[data-testid] {
   --background-focused-opacity: 0;
 }
 
+ion-fab.fab-vertical-bottom,
 ion-fab[slot="fixed"][vertical="bottom"] {
-  bottom: calc(var(--ion-safe-area-bottom, 0px) + 24px);
+  bottom: max(
+    90px,
+    calc(16px + var(--safe-area-inset-bottom, var(--ion-safe-area-bottom, 0px)))
+  ) !important;
 }
 
 ion-button[fill="outline"] {

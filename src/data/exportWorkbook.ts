@@ -1,3 +1,7 @@
+import { Capacitor } from '@capacitor/core';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 export type SaveResult = 'saved' | 'cancelled';
@@ -20,7 +24,33 @@ function nativePicker(win: Window): ShowSaveFilePicker | undefined {
     : undefined;
 }
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 export async function saveWorkbookToDisk(buffer: ArrayBuffer, filename: string): Promise<SaveResult> {
+  if (Capacitor.isNativePlatform()) {
+    const base64 = arrayBufferToBase64(buffer);
+    const { uri } = await Filesystem.writeFile({
+      path: filename,
+      data: base64,
+      directory: Directory.Cache,
+      recursive: true,
+    });
+    await Share.share({
+      title: filename,
+      text: 'Esportazione DB WeeklyMenu',
+      files: [uri],
+      dialogTitle: 'Salva o condividi il DB',
+    });
+    return 'saved';
+  }
+
   const picker = nativePicker(window);
   if (picker) {
     try {

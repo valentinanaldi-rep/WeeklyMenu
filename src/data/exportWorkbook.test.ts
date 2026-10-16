@@ -1,5 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import { saveWorkbookToDisk } from './exportWorkbook';
+
+vi.mock('@capacitor/core', () => ({
+  Capacitor: { isNativePlatform: vi.fn(() => false) },
+}));
+
+vi.mock('@capacitor/filesystem', () => ({
+  Directory: { Cache: 'CACHE', Documents: 'DOCUMENTS', Data: 'DATA' },
+  Filesystem: { writeFile: vi.fn(async () => ({ uri: 'file:///cache/file.xlsx' })) },
+}));
+
+vi.mock('@capacitor/share', () => ({
+  Share: { share: vi.fn(async () => ({})) },
+}));
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -12,6 +28,7 @@ describe('saveWorkbookToDisk', () => {
   const buffer = new Uint8Array([1, 2, 3]).buffer as ArrayBuffer;
 
   beforeEach(() => {
+    (Capacitor.isNativePlatform as ReturnType<typeof vi.fn>).mockReturnValue(false);
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     (URL as unknown as UrlWithObjectUrl).createObjectURL = vi.fn(() => 'blob:mock');
     (URL as unknown as UrlWithObjectUrl).revokeObjectURL = vi.fn();
@@ -56,5 +73,20 @@ describe('saveWorkbookToDisk', () => {
     });
     Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: pick });
     await expect(saveWorkbookToDisk(buffer, 'file.xlsx')).resolves.toBe('cancelled');
+  });
+
+  it('writes to the app cache and opens the share sheet on native', async () => {
+    (Capacitor.isNativePlatform as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+    const result = await saveWorkbookToDisk(buffer, 'file.xlsx');
+
+    expect(result).toBe('saved');
+    expect(Filesystem.writeFile).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'file.xlsx', directory: 'CACHE', recursive: true }),
+    );
+    expect(Share.share).toHaveBeenCalledWith(
+      expect.objectContaining({ files: ['file:///cache/file.xlsx'] }),
+    );
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
   });
 });

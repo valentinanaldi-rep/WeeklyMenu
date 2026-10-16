@@ -33,3 +33,7 @@ yarn-error.log*
 # app data
 /dati/*.xlsx
 /dati/*.txt
+
+# Android signing
+*.jks
+*.keystore
